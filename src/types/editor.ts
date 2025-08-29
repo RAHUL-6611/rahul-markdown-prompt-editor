@@ -99,6 +99,7 @@ export interface EditorComponentProps extends BaseComponentProps {
   onContentChange?: (content: ContentState) => void;
   onStateChange?: (state: EditorState) => void;
   initialContent?: string;
+  onSaveVersion?: () => void;
 }
 
 export interface PreviewComponentProps extends BaseComponentProps {

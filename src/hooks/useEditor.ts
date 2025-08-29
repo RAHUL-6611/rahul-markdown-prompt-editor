@@ -16,16 +16,20 @@ export { EditorContent };
 /**
  * Hook for editor keyboard shortcuts
  */
-export const useEditorShortcuts = (editor: Editor | null) => {
+export const useEditorShortcuts = (
+  editor: Editor | null,
+  onSaveVersion?: () => void
+) => {
   useEffect(() => {
     if (!editor) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ctrl/Cmd + S for save
+      // Ctrl/Cmd + S for save version
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
         event.preventDefault();
-        // Trigger save action (to be implemented)
-        console.log('Save triggered');
+        if (onSaveVersion) {
+          onSaveVersion();
+        }
       }
 
       // Ctrl/Cmd + B for bold
@@ -52,5 +56,5 @@ export const useEditorShortcuts = (editor: Editor | null) => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editor]);
+  }, [editor, onSaveVersion]);
 };
