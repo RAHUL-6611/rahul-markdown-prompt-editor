@@ -33,3 +33,12 @@
     min-width: auto;
   }
 }
+
+/* Document Manager Styles */
+.document-manager {
+  position: relative;
+}
+
+.document-manager button {
+  white-space: nowrap;
+}

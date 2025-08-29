@@ -1,21 +1,24 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Version, DocumentState } from '../types/editor';
+import { versionStorage } from '../services/storage';
 
 /**
  * Hook for managing prompt versions
  */
-export const useVersioning = (initialContent: string = '') => {
+export const useVersioning = (initialContent: string = '', documentId?: string) => {
   const [documentState, setDocumentState] = useState<DocumentState>({
-    id: generateDocumentId(),
+    id: documentId || generateDocumentId(),
     content: initialContent,
     versions: [],
     updatedAt: new Date().toISOString(),
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /**
    * Save current content as a new version
    */
-  const saveVersion = useCallback((content: string, name?: string) => {
+  const saveVersion = useCallback(async (content: string, name?: string) => {
     const newVersion: Version = {
       id: generateVersionId(),
       createdAt: new Date().toISOString(),
@@ -24,52 +27,94 @@ export const useVersioning = (initialContent: string = '') => {
       summary: generateContentSummary(content),
     };
 
-    setDocumentState(prev => ({
-      ...prev,
+    const updatedState = {
+      ...documentState,
       content,
-      versions: [newVersion, ...prev.versions],
+      versions: [newVersion, ...documentState.versions],
       updatedAt: new Date().toISOString(),
-    }));
+    };
+
+    setDocumentState(updatedState);
+
+    try {
+      await versionStorage.saveDocument(updatedState);
+      setError(null);
+    } catch (err) {
+      setError('Failed to save version to storage');
+      console.error('Storage error:', err);
+    }
 
     return newVersion;
-  }, []);
+  }, [documentState]);
 
   /**
    * Load a specific version
    */
-  const loadVersion = useCallback((versionId: string) => {
+  const loadVersion = useCallback(async (versionId: string) => {
     const version = documentState.versions.find(v => v.id === versionId);
     if (version) {
-      setDocumentState(prev => ({
-        ...prev,
+      const updatedState = {
+        ...documentState,
         content: version.content,
         updatedAt: new Date().toISOString(),
-      }));
+      };
+      
+      setDocumentState(updatedState);
+
+      try {
+        await versionStorage.saveDocument(updatedState);
+        setError(null);
+      } catch (err) {
+        setError('Failed to save current state to storage');
+        console.error('Storage error:', err);
+      }
+
       return version.content;
     }
     return null;
-  }, [documentState.versions]);
+  }, [documentState]);
 
   /**
    * Delete a version
    */
-  const deleteVersion = useCallback((versionId: string) => {
-    setDocumentState(prev => ({
-      ...prev,
-      versions: prev.versions.filter(v => v.id !== versionId),
-    }));
-  }, []);
+  const deleteVersion = useCallback(async (versionId: string) => {
+    const updatedState = {
+      ...documentState,
+      versions: documentState.versions.filter(v => v.id !== versionId),
+    };
+    
+    setDocumentState(updatedState);
+
+    try {
+      await versionStorage.saveDocument(updatedState);
+      setError(null);
+    } catch (err) {
+      setError('Failed to delete version from storage');
+      console.error('Storage error:', err);
+    }
+  }, [documentState]);
 
   /**
    * Update current content without creating a version
    */
-  const updateContent = useCallback((content: string) => {
-    setDocumentState(prev => ({
-      ...prev,
+  const updateContent = useCallback(async (content: string) => {
+    const updatedState = {
+      ...documentState,
       content,
       updatedAt: new Date().toISOString(),
-    }));
-  }, []);
+    };
+    
+    setDocumentState(updatedState);
+
+    // Auto-save current state to storage
+    try {
+      await versionStorage.saveDocument(updatedState);
+      setError(null);
+    } catch (err) {
+      setError('Failed to save current state to storage');
+      console.error('Storage error:', err);
+    }
+  }, [documentState]);
 
   /**
    * Get the latest version
@@ -87,6 +132,57 @@ export const useVersioning = (initialContent: string = '') => {
     return latestVersion.content !== documentState.content;
   }, [documentState.content, getLatestVersion]);
 
+  /**
+   * Load document from storage
+   */
+  const loadDocumentFromStorage = useCallback(async (docId: string) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const loadedDocument = await versionStorage.loadDocument(docId);
+      if (loadedDocument) {
+        setDocumentState(loadedDocument);
+      }
+    } catch (err) {
+      setError('Failed to load document from storage');
+      console.error('Storage error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Create a new document
+   */
+  const createNewDocument = useCallback(() => {
+    const newDocumentState: DocumentState = {
+      id: generateDocumentId(),
+      content: '',
+      versions: [],
+      updatedAt: new Date().toISOString(),
+    };
+    setDocumentState(newDocumentState);
+    setError(null);
+  }, []);
+
+  // Initialize storage and load document if documentId is provided
+  useEffect(() => {
+    const initializeStorage = async () => {
+      try {
+        await versionStorage.init();
+        if (documentId) {
+          await loadDocumentFromStorage(documentId);
+        }
+      } catch (err) {
+        setError('Failed to initialize storage');
+        console.error('Storage initialization error:', err);
+      }
+    };
+
+    initializeStorage();
+  }, [documentId, loadDocumentFromStorage]);
+
   return {
     documentState,
     saveVersion,
@@ -95,6 +191,10 @@ export const useVersioning = (initialContent: string = '') => {
     updateContent,
     getLatestVersion,
     hasUnsavedChanges,
+    loadDocumentFromStorage,
+    createNewDocument,
+    isLoading,
+    error,
   };
 };
 

@@ -13,7 +13,7 @@ import Toolbar from './components/Layout/Toolbar';
 import StatusBar from './components/Layout/StatusBar';
 
 // Versioning Components
-import { VersionsPanel } from './components/Versions';
+import { VersionsPanel, DocumentManager } from './components/Versions';
 
 // Import design tokens
 import './styles/design-tokens.css';
@@ -30,6 +30,10 @@ function App() {
     deleteVersion,
     updateContent,
     hasUnsavedChanges,
+    loadDocumentFromStorage,
+    createNewDocument,
+    isLoading,
+    error,
   } = useVersioning('');
 
   // Handle content changes from editor
@@ -38,13 +42,18 @@ function App() {
   };
 
   // Handle loading sample content
-  const handleLoadSample = () => {
-    updateContent(sampleContent);
+  const handleLoadSample = async () => {
+    await updateContent(sampleContent);
   };
 
   // Handle clearing content
-  const handleClearContent = () => {
-    updateContent('');
+  const handleClearContent = async () => {
+    await updateContent('');
+  };
+
+  // Handle saving version
+  const handleSaveVersion = async (content: string, name?: string) => {
+    await saveVersion(content, name);
   };
 
   // Sample LLM prompt content for testing
@@ -193,6 +202,15 @@ Write a comprehensive blog post about "The Future of AI in Software Development"
               Clear Prompt
             </button>
             
+            {/* Document Management */}
+            <div className="relative">
+              <DocumentManager
+                onLoadDocument={loadDocumentFromStorage}
+                onNewDocument={createNewDocument}
+                currentDocumentId={documentState.id}
+              />
+            </div>
+            
             {/* Versioning Controls */}
             <div className="relative">
               <VersionsPanel
@@ -200,7 +218,7 @@ Write a comprehensive blog post about "The Future of AI in Software Development"
                 currentContent={documentState.content}
                 onLoadVersion={loadVersion}
                 onDeleteVersion={deleteVersion}
-                onSaveVersion={saveVersion}
+                onSaveVersion={handleSaveVersion}
                 hasUnsavedChanges={hasUnsavedChanges()}
               />
             </div>
@@ -222,6 +240,25 @@ Write a comprehensive blog post about "The Future of AI in Software Development"
                 </svg>
                 <span className="font-medium">{documentState.content.trim() ? documentState.content.trim().split(/\s+/).length : 0}</span>
                 <span>words</span>
+              </div>
+            )}
+            
+            {/* Storage Status */}
+            {isLoading && (
+              <div className="flex items-center space-sm text-body-small text-secondary">
+                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Saving...</span>
+              </div>
+            )}
+            
+            {error && (
+              <div className="flex items-center space-sm text-body-small text-error">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
               </div>
             )}
           </div>
