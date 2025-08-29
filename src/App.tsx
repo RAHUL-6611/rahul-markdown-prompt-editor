@@ -3,14 +3,12 @@ import TiptapEditor from './components/Editor/TiptapEditor';
 import MarkdownPreview from './components/Preview/MarkdownPreview';
 import SplitView from './components/Layout/SplitView';
 import { useTheme } from './hooks/useTheme';
-import { useDebouncedContent } from './hooks/useEditor';
 import type { ContentState } from './types/editor';
 import './App.css';
 
 function App() {
   const [content, setContent] = useState<string>('');
   const { theme, setTheme, toggleTheme, isDark } = useTheme();
-  const debouncedContent = useDebouncedContent(content);
 
   // Handle content changes from editor
   const handleContentChange = (newContent: ContentState) => {
@@ -140,7 +138,7 @@ function hello() {
             }
             preview={
               <MarkdownPreview
-                content={debouncedContent}
+                content={content}
                 config={{
                   githubFlavoredMarkdown: true,
                   syntaxHighlighting: true,

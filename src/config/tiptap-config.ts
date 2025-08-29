@@ -9,10 +9,9 @@ import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import { Table } from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableCell from '@tiptap/extension-table-cell';
-import TableHeader from '@tiptap/extension-table-header';
+import { TableKit } from '@tiptap/extension-table';
+import BubbleMenu from '@tiptap/extension-bubble-menu';
+import FloatingMenu from '@tiptap/extension-floating-menu';
 
 // Import configuration constants
 import { EDITOR_CONFIG } from './features';
@@ -105,49 +104,26 @@ export const createTiptapExtensions = () => [
     },
   }),
 
-  // Table extensions - For data tables
-  Table.configure({
-    resizable: true,
-    HTMLAttributes: {
-      class: 'border-collapse border border-gray-300 dark:border-gray-600 w-full',
+  // TableKit - Complete table functionality
+  TableKit,
+
+  // Bubble menu - Floating formatting menu
+  BubbleMenu.configure({
+    element: null, // Will be set dynamically
+    shouldShow: ({ editor, from, to }) => {
+      // Only show when text is selected and editor is not destroyed
+      return from !== to && !editor.isDestroyed;
     },
   }),
 
-  TableRow.configure({
-    HTMLAttributes: {
-      class: 'border-b border-gray-300 dark:border-gray-600',
+  // Floating menu - Insert menu
+  FloatingMenu.configure({
+    element: null, // Will be set dynamically
+    shouldShow: ({ editor }) => {
+      // Show when cursor is in empty paragraph
+      return editor.isActive('paragraph') && editor.isEmpty;
     },
   }),
-
-  TableHeader.configure({
-    HTMLAttributes: {
-      class: 'border border-gray-300 dark:border-gray-600 px-4 py-2 bg-gray-100 dark:bg-gray-800 font-bold text-left',
-    },
-  }),
-
-  TableCell.configure({
-    HTMLAttributes: {
-      class: 'border border-gray-300 dark:border-gray-600 px-4 py-2',
-    },
-  }),
-
-  // Bubble menu - Floating formatting menu (disabled for V1)
-  // BubbleMenu.configure({
-  //   element: null, // Will be set dynamically
-  //   shouldShow: ({ editor, from, to }) => {
-  //     // Only show when text is selected and editor is not destroyed
-  //     return from !== to && !editor.isDestroyed;
-  //   },
-  // }),
-
-  // Floating menu - Insert menu (disabled for V1)
-  // FloatingMenu.configure({
-  //   element: null, // Will be set dynamically
-  //   shouldShow: ({ editor }) => {
-  //     // Show when cursor is in empty paragraph
-  //     return editor.isActive('paragraph') && editor.isEmpty;
-  //   },
-  // }),
 ];
 
 /**

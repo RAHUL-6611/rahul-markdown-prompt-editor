@@ -1,102 +1,89 @@
 /**
- * TiptapEditor Component
- * Main editor component using Tiptap with configured extensions
+ * MarkdownEditor Component
+ * Simple textarea-based Markdown editor
  */
 
-import React, { useRef, useEffect } from 'react';
-import type { Editor } from '@tiptap/core';
-
-import { useEditor, useEditorShortcuts, EditorContent } from '../../hooks/useEditor';
+import React, { useState, useEffect } from 'react';
 import { isFeatureEnabled } from '../../config/features';
 import type { EditorComponentProps } from '../../types/editor';
 
 /**
- * Bubble Menu Component for text formatting
- * TODO: Implement in future version when BubbleMenu is properly configured
- */
-const EditorBubbleMenu: React.FC<{ editor: Editor | null }> = ({ editor }) => {
-  if (!editor || !isFeatureEnabled('TOOLBAR')) return null;
-  return null; // Temporarily disabled
-};
-
-/**
- * Floating Menu Component for inserting content
- * TODO: Implement in future version when FloatingMenu is properly configured
- */
-const EditorFloatingMenu: React.FC<{ editor: Editor | null }> = ({ editor }) => {
-  if (!editor || !isFeatureEnabled('TOOLBAR')) return null;
-  return null; // Temporarily disabled
-};
-
-/**
- * Main TiptapEditor Component
+ * Main MarkdownEditor Component
+ * Simple textarea that captures raw Markdown input
  */
 export const TiptapEditor: React.FC<EditorComponentProps> = (props) => {
   const {
-    config,
     onContentChange,
-    onStateChange,
-    initialContent,
+    initialContent = '',
     className = '',
     'data-testid': testId,
   } = props;
 
-  // Use custom editor hook
-  const { editor, state, focus } = useEditor({
-    config,
-    onContentChange,
-    onStateChange,
-    initialContent,
-  });
+  const [content, setContent] = useState(initialContent);
 
-  // Set up keyboard shortcuts
-  useEditorShortcuts(editor);
-
-  // Container ref for accessibility
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Focus management
-  useEffect(() => {
-    if (editor && config?.theme === 'auto') {
-      // Auto-focus on mount if configured
-      focus();
+  // Handle content changes
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+    
+    if (onContentChange) {
+      onContentChange({
+        html: newContent, // We'll convert this to HTML in the preview
+        markdown: newContent, // Raw Markdown content
+        json: {}, // Not needed for simple editor
+        text: newContent,
+      });
     }
-  }, [editor, focus, config?.theme]);
+  };
+
+  // Update content when initialContent changes
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent]);
+
+  // Calculate character and word count
+  const characterCount = content.length;
+  const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
 
   return (
     <div
-      ref={containerRef}
       className={`relative min-h-[400px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 ${className}`}
-      data-testid={testId || 'tiptap-editor-container'}
+      data-testid={testId || 'markdown-editor-container'}
       role="textbox"
       aria-label="Markdown editor"
       aria-multiline="true"
     >
+      {/* Editor Header */}
+      <div className="px-4 py-2 border-b border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 rounded-t-lg">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Editor
+          </h3>
+          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+              Markdown
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Editor Content */}
       <div className="p-4 min-h-[400px] focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
-        <EditorContent 
-          editor={editor} 
-          className="outline-none"
+        <textarea
+          value={content}
+          onChange={handleChange}
+          placeholder="Start writing your markdown..."
+          className="w-full h-full min-h-[350px] outline-none resize-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 font-mono text-sm leading-relaxed"
+          style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace' }}
         />
       </div>
 
-      {/* Bubble Menu for text formatting */}
-      <EditorBubbleMenu editor={editor} />
-
-      {/* Floating Menu for content insertion */}
-      <EditorFloatingMenu editor={editor} />
-
-      {/* Character Count (if enabled) */}
-      {isFeatureEnabled('TOOLBAR') && editor && (
+      {/* Character Count */}
+      {isFeatureEnabled('TOOLBAR') && (
         <div className="absolute bottom-2 right-2 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 px-2 py-1 rounded border">
-          {state.characterCount} characters
-          {state.wordCount > 0 && ` • ${state.wordCount} words`}
+          {characterCount} characters
+          {wordCount > 0 && ` • ${wordCount} words`}
         </div>
-      )}
-
-      {/* Dirty State Indicator */}
-      {state.isDirty && (
-        <div className="absolute top-2 right-2 w-2 h-2 bg-yellow-500 rounded-full" title="Unsaved changes" />
       )}
     </div>
   );
