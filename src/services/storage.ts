@@ -1,5 +1,5 @@
 import localforage from 'localforage';
-import type { Version, DocumentState } from '../types/editor';
+import type { DocumentState } from '../types/editor';
 import { isVersionEnabled } from '../config/features';
 
 /**

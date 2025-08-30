@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { versionStorage } from '../../services/storage';
-import type { DocumentState } from '../../types/editor';
 import './VersionsPanel.css';
 
 interface DocumentManagerProps {
@@ -29,7 +28,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         return doc ? { id: doc.id, updatedAt: doc.updatedAt, content: doc.content } : null;
       });
       
-      const loadedDocuments = (await Promise.all(documentPromises)).filter(Boolean);
+      const loadedDocuments = (await Promise.all(documentPromises)).filter((doc): doc is { id: string; updatedAt: string; content: string } => doc !== null);
       setDocuments(loadedDocuments);
     } catch (error) {
       console.error('Failed to load documents:', error);
@@ -90,7 +89,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
               <h3 className="text-heading-4 font-semibold text-primary">Documents</h3>
               <button
                 onClick={onNewDocument}
-                className="inline-flex items-center px-3 py-1 bg-primary text-text-inverse font-medium rounded-lg hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-normal text-body-small"
+                className="inline-flex items-center px-3 py-1 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-normal text-body-small"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

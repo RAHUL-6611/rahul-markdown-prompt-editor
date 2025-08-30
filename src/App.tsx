@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import TiptapEditor from './components/Editor/TiptapEditor';
 import MarkdownPreview from './components/Preview/MarkdownPreview';
 import { useTheme } from './hooks/useTheme';
@@ -44,7 +44,6 @@ function App() {
     createNewDocument,
     isLoading,
     error,
-    storageStatus,
   } = useVersioning('');
 
   // Handle content changes from editor

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { versionStorage } from '../../services/storage';
-import type { DocumentState, Version } from '../../types/editor';
 import './PromptManager.css';
 
 interface PromptManagerProps {
@@ -67,12 +66,12 @@ export const PromptManager: React.FC<PromptManagerProps> = ({
           doc.versions.forEach(version => {
             allPrompts.push({
               id: version.id,
-              name: version.name,
+              name: version.name || `Version ${version.id.slice(-8)}`,
               content: version.content,
               updatedAt: version.createdAt,
               type: 'version',
               parentId: doc.id,
-              summary: version.summary || undefined,
+              summary: version.summary || '',
             });
           });
         }
@@ -296,7 +295,7 @@ export const PromptManager: React.FC<PromptManagerProps> = ({
                     key={prompt.id}
                     className={`p-2 sm:p-3 border rounded-lg transition-normal cursor-pointer ${
                       prompt.id === currentDocumentId
-                        ? 'border-primary bg-primary-50'
+                        ? 'border-primary bg-surface-secondary'
                         : 'border-primary hover:bg-surface-secondary'
                     }`}
                     onClick={() => handleLoadPrompt(prompt)}
@@ -318,7 +317,7 @@ export const PromptManager: React.FC<PromptManagerProps> = ({
                           </div>
                           
                           {prompt.id === currentDocumentId && (
-                            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-caption bg-primary-100 text-primary-800 border border-primary-200">
+                            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-caption bg-primary-600 text-white border border-primary-600">
                               <span className="hidden sm:inline">Current</span>
                               <span className="sm:hidden">Now</span>
                             </span>
