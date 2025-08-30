@@ -13,7 +13,7 @@ import Toolbar from './components/Layout/Toolbar';
 import StatusBar from './components/Layout/StatusBar';
 
 // Versioning Components
-import { VersionsPanel, DocumentManager } from './components/Versions';
+import { PromptManager } from './components/Versions';
 
 // Import design tokens
 import './styles/design-tokens.css';
@@ -21,6 +21,16 @@ import './App.css';
 
 function App() {
   const { theme, setTheme, toggleTheme, isDark } = useTheme();
+  
+  // Apply theme to document root on mount
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
   
   // Versioning functionality
   const {
@@ -34,6 +44,7 @@ function App() {
     createNewDocument,
     isLoading,
     error,
+    storageStatus,
   } = useVersioning('');
 
   // Handle content changes from editor
@@ -107,7 +118,7 @@ Write a comprehensive blog post about "The Future of AI in Software Development"
                 {/* App Icon */}
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-elevation-2">
-                    <svg className="w-6 h-6 text-text-inverse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                   </div>
@@ -167,7 +178,7 @@ Write a comprehensive blog post about "The Future of AI in Software Development"
                       <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5 text-text-primary transition-transform group-hover:rotate-12" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-primary-600 transition-transform group-hover:rotate-12" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                     </svg>
                   )}
@@ -182,43 +193,47 @@ Write a comprehensive blog post about "The Future of AI in Software Development"
       <MainContent className="flex-1 flex flex-col w-full">
         {/* Toolbar */}
         <Toolbar>
-          <div className="flex items-center space-md">
-            <button
-              onClick={handleLoadSample}
-              className="inline-flex items-center px-4 py-2 bg-surface-primary text-text-inverse font-medium rounded-lg hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-normal shadow-elevation-1 hover:shadow-elevation-2 text-body-small"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Load Sample Prompt
-            </button>
-            <button
-              onClick={handleClearContent}
-              className="inline-flex items-center px-4 py-2 bg-surface-primary text-text-primary font-medium rounded-lg border border-primary hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-normal shadow-elevation-1 hover:shadow-elevation-2 text-body-small"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Clear Prompt
-            </button>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
+            {/* Primary Actions - Always visible */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={handleLoadSample}
+                className="inline-flex items-center px-3 py-2 sm:px-4 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-normal shadow-elevation-1 hover:shadow-elevation-2 text-body-small"
+                title="Load sample prompt"
+              >
+                <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span className="hidden sm:inline">Load Sample</span>
+                <span className="sm:hidden">Sample</span>
+              </button>
+              
+              <button
+                onClick={handleClearContent}
+                className="inline-flex items-center px-3 py-2 sm:px-4 bg-surface-primary text-text-primary font-medium rounded-lg border border-primary hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-normal shadow-elevation-1 hover:shadow-elevation-2 text-body-small"
+                title="Clear current prompt"
+              >
+                <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span className="hidden sm:inline">Clear</span>
+                <span className="sm:hidden">Clear</span>
+              </button>
+            </div>
+
+            {/* Divider - Hidden on mobile */}
+            <div className="hidden md:block w-px h-6 bg-primary opacity-30"></div>
             
-            {/* Document Management */}
-            <div className="relative">
-              <DocumentManager
+            {/* Prompt Management - Responsive */}
+            <div className="relative flex-1 min-w-0">
+              <PromptManager
                 onLoadDocument={loadDocumentFromStorage}
                 onNewDocument={createNewDocument}
-                currentDocumentId={documentState.id}
-              />
-            </div>
-            
-            {/* Versioning Controls */}
-            <div className="relative">
-              <VersionsPanel
-                versions={documentState.versions}
-                currentContent={documentState.content}
                 onLoadVersion={loadVersion}
                 onDeleteVersion={deleteVersion}
                 onSaveVersion={handleSaveVersion}
+                currentDocumentId={documentState.id}
+                currentContent={documentState.content}
                 hasUnsavedChanges={hasUnsavedChanges()}
               />
             </div>
@@ -252,6 +267,18 @@ Write a comprehensive blog post about "The Future of AI in Software Development"
                 <span>Saving...</span>
               </div>
             )}
+            
+            {/* Storage Driver Info */}
+            {/* {storageStatus.enabled && (
+              <div className="flex items-center space-sm text-body-small text-secondary">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                </svg>
+                <span className={storageStatus.available ? 'text-success' : 'text-warning'}>
+                  {storageStatus.available ? storageStatus.driver : 'No storage'}
+                </span>
+              </div>
+            )} */}
             
             {error && (
               <div className="flex items-center space-sm text-body-small text-error">

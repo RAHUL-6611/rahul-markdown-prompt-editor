@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Version, DocumentState } from '../types/editor';
 import { versionStorage } from '../services/storage';
+import { isVersionEnabled } from '../config/features';
 
 /**
  * Hook for managing prompt versions
@@ -14,6 +15,15 @@ export const useVersioning = (initialContent: string = '', documentId?: string) 
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [storageStatus, setStorageStatus] = useState<{
+    available: boolean;
+    driver: string;
+    enabled: boolean;
+  }>({
+    available: false,
+    driver: 'unknown',
+    enabled: isVersionEnabled('V2_PERSISTENCE'),
+  });
 
   /**
    * Save current content as a new version
@@ -40,8 +50,8 @@ export const useVersioning = (initialContent: string = '', documentId?: string) 
       await versionStorage.saveDocument(updatedState);
       setError(null);
     } catch (err) {
-      setError('Failed to save version to storage');
-      console.error('Storage error:', err);
+      console.warn('Failed to save version to storage:', err);
+      setError('Failed to save version (using in-memory only)');
     }
 
     return newVersion;
@@ -65,8 +75,8 @@ export const useVersioning = (initialContent: string = '', documentId?: string) 
         await versionStorage.saveDocument(updatedState);
         setError(null);
       } catch (err) {
-        setError('Failed to save current state to storage');
-        console.error('Storage error:', err);
+        console.warn('Failed to save current state to storage:', err);
+        setError('Failed to save current state (using in-memory only)');
       }
 
       return version.content;
@@ -89,8 +99,8 @@ export const useVersioning = (initialContent: string = '', documentId?: string) 
       await versionStorage.saveDocument(updatedState);
       setError(null);
     } catch (err) {
-      setError('Failed to delete version from storage');
-      console.error('Storage error:', err);
+      console.warn('Failed to delete version from storage:', err);
+      setError('Failed to delete version (using in-memory only)');
     }
   }, [documentState]);
 
@@ -111,8 +121,8 @@ export const useVersioning = (initialContent: string = '', documentId?: string) 
       await versionStorage.saveDocument(updatedState);
       setError(null);
     } catch (err) {
-      setError('Failed to save current state to storage');
-      console.error('Storage error:', err);
+      console.warn('Failed to save current state to storage:', err);
+      setError('Failed to save current state (using in-memory only)');
     }
   }, [documentState]);
 
@@ -145,8 +155,8 @@ export const useVersioning = (initialContent: string = '', documentId?: string) 
         setDocumentState(loadedDocument);
       }
     } catch (err) {
+      console.warn('Failed to load document from storage:', err);
       setError('Failed to load document from storage');
-      console.error('Storage error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -166,22 +176,41 @@ export const useVersioning = (initialContent: string = '', documentId?: string) 
     setError(null);
   }, []);
 
+  /**
+   * Initialize storage and check availability
+   */
+  const initializeStorage = useCallback(async () => {
+    try {
+      await versionStorage.init();
+      
+      // Check storage availability
+      const available = await versionStorage.isStorageAvailable();
+      const driver = versionStorage.getCurrentDriver();
+      
+      setStorageStatus({
+        available,
+        driver,
+        enabled: isVersionEnabled('V2_PERSISTENCE'),
+      });
+
+      if (documentId) {
+        await loadDocumentFromStorage(documentId);
+      }
+    } catch (err) {
+      console.warn('Storage initialization failed, continuing without persistence:', err);
+      setStorageStatus({
+        available: false,
+        driver: 'none',
+        enabled: isVersionEnabled('V2_PERSISTENCE'),
+      });
+      setError(null); // Don't show error to user, just log it
+    }
+  }, [documentId, loadDocumentFromStorage]);
+
   // Initialize storage and load document if documentId is provided
   useEffect(() => {
-    const initializeStorage = async () => {
-      try {
-        await versionStorage.init();
-        if (documentId) {
-          await loadDocumentFromStorage(documentId);
-        }
-      } catch (err) {
-        setError('Failed to initialize storage');
-        console.error('Storage initialization error:', err);
-      }
-    };
-
     initializeStorage();
-  }, [documentId, loadDocumentFromStorage]);
+  }, [initializeStorage]);
 
   return {
     documentState,
@@ -195,6 +224,7 @@ export const useVersioning = (initialContent: string = '', documentId?: string) 
     createNewDocument,
     isLoading,
     error,
+    storageStatus,
   };
 };
 

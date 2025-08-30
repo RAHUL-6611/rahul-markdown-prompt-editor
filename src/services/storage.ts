@@ -1,289 +1,272 @@
+import localforage from 'localforage';
 import type { Version, DocumentState } from '../types/editor';
+import { isVersionEnabled } from '../config/features';
 
 /**
- * IndexedDB Storage Service for Version Management
+ * LocalForage Storage Service for Version Management
+ * Provides unified storage API with automatic fallback (IndexedDB -> WebSQL -> localStorage)
  */
 class VersionStorageService {
-  private dbName = 'markdown-prompt-editor';
-  private dbVersion = 1;
-  private storeName = 'versions';
-  private db: IDBDatabase | null = null;
+  private store: LocalForage;
+  private isInitialized = false;
+
+  constructor() {
+    // Configure localForage
+    this.store = localforage.createInstance({
+      name: 'markdown-prompt-editor',
+      version: 1.0,
+      storeName: 'versions',
+      description: 'Markdown Prompt Editor - Document and Version Storage'
+    });
+
+    // Set driver priority: IndexedDB -> WebSQL -> localStorage
+    this.store.setDriver([
+      localforage.INDEXEDDB,
+      localforage.WEBSQL,
+      localforage.LOCALSTORAGE
+    ]);
+  }
 
   /**
-   * Initialize the database
+   * Initialize the storage service
    */
   async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
+    if (this.isInitialized) {
+      return;
+    }
 
-      request.onerror = () => {
-        reject(new Error('Failed to open IndexedDB'));
-      };
+    // Check if persistence is enabled
+    if (!isVersionEnabled('V2_PERSISTENCE')) {
+      console.log('Persistence disabled, using in-memory storage only');
+      this.isInitialized = true;
+      return;
+    }
 
-      request.onsuccess = () => {
-        this.db = request.result;
-        resolve();
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        
-        // Create versions store
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
-          store.createIndex('createdAt', 'createdAt', { unique: false });
-          store.createIndex('documentId', 'documentId', { unique: false });
-        }
-      };
-    });
+    try {
+      // Test storage availability
+      await this.store.ready();
+      console.log('LocalForage initialized successfully with driver:', this.store.driver());
+      this.isInitialized = true;
+    } catch (error) {
+      console.warn('LocalForage initialization failed, using in-memory storage:', error);
+      this.isInitialized = true;
+      // Continue with in-memory state only
+    }
   }
 
   /**
    * Save a document state with all its versions
    */
   async saveDocument(documentState: DocumentState): Promise<void> {
-    if (!this.db) {
+    if (!this.isInitialized) {
       await this.init();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
+    if (!isVersionEnabled('V2_PERSISTENCE')) {
+      return; // Skip persistence if disabled
+    }
 
-      // Save the document state
-      const documentRequest = store.put({
-        id: documentState.id,
-        type: 'document',
-        content: documentState.content,
-        updatedAt: documentState.updatedAt,
-        createdAt: new Date().toISOString(),
-      });
-
-      // Save all versions
-      const versionPromises = documentState.versions.map(version => {
-        return new Promise<void>((resolveVersion, rejectVersion) => {
-          const versionRequest = store.put({
-            id: version.id,
-            type: 'version',
-            documentId: documentState.id,
-            name: version.name,
-            content: version.content,
-            summary: version.summary,
-            createdAt: version.createdAt,
-          });
-
-          versionRequest.onsuccess = () => resolveVersion();
-          versionRequest.onerror = () => rejectVersion(versionRequest.error);
-        });
-      });
-
-      documentRequest.onsuccess = async () => {
-        try {
-          await Promise.all(versionPromises);
-          resolve();
-        } catch (error) {
-          reject(error);
-        }
+    try {
+      const data = {
+        documents: { [documentState.id]: documentState },
+        versions: documentState.versions.reduce((acc, version) => {
+          acc[version.id] = { ...version, documentId: documentState.id };
+          return acc;
+        }, {} as Record<string, any>)
       };
 
-      documentRequest.onerror = () => {
-        reject(documentRequest.error);
-      };
-    });
+      await this.store.setItem('app-data', data);
+    } catch (error) {
+      console.error('Failed to save document to storage:', error);
+      throw new Error('Failed to save document to storage');
+    }
   }
 
   /**
    * Load a document state with all its versions
    */
   async loadDocument(documentId: string): Promise<DocumentState | null> {
-    if (!this.db) {
+    if (!this.isInitialized) {
       await this.init();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readonly');
-      const store = transaction.objectStore(this.storeName);
+    if (!isVersionEnabled('V2_PERSISTENCE')) {
+      return null; // No persistence when disabled
+    }
 
-      // Load document
-      const documentRequest = store.get(documentId);
-      
-      documentRequest.onsuccess = () => {
-        const document = documentRequest.result;
-        if (!document || document.type !== 'document') {
-          resolve(null);
-          return;
-        }
+    try {
+      const data = await this.store.getItem('app-data') as any;
+      if (!data || !data.documents) {
+        return null;
+      }
 
-        // Load versions for this document
-        const versionIndex = store.index('documentId');
-        const versionRequest = versionIndex.getAll(documentId);
+      const document = data.documents[documentId];
+      if (!document) {
+        return null;
+      }
 
-        versionRequest.onsuccess = () => {
-          const versionRecords = versionRequest.result;
-          const versions: Version[] = versionRecords
-            .filter((record: any) => record.type === 'version')
-            .map((record: any) => ({
-              id: record.id,
-              name: record.name,
-              content: record.content,
-              summary: record.summary,
-              createdAt: record.createdAt,
-            }))
-            .sort((a: Version, b: Version) => 
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
+      // Get versions for this document
+      const versions = Object.values(data.versions || {})
+        .filter((v: any) => v.documentId === documentId)
+        .map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          content: v.content,
+          summary: v.summary,
+          createdAt: v.createdAt,
+        }))
+        .sort((a: any, b: any) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
 
-          const documentState: DocumentState = {
-            id: document.id,
-            content: document.content,
-            versions,
-            updatedAt: document.updatedAt,
-          };
-
-          resolve(documentState);
-        };
-
-        versionRequest.onerror = () => {
-          reject(versionRequest.error);
-        };
+      return {
+        id: document.id,
+        content: document.content,
+        versions,
+        updatedAt: document.updatedAt,
       };
-
-      documentRequest.onerror = () => {
-        reject(documentRequest.error);
-      };
-    });
+    } catch (error) {
+      console.error('Failed to load document from storage:', error);
+      return null;
+    }
   }
 
   /**
    * Get all document IDs
    */
   async getAllDocumentIds(): Promise<string[]> {
-    if (!this.db) {
+    if (!this.isInitialized) {
       await this.init();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readonly');
-      const store = transaction.objectStore(this.storeName);
+    if (!isVersionEnabled('V2_PERSISTENCE')) {
+      return [];
+    }
 
-      const request = store.getAll();
-      
-      request.onsuccess = () => {
-        const documents = request.result
-          .filter((record: any) => record.type === 'document')
-          .map((record: any) => record.id);
-        resolve(documents);
-      };
+    try {
+      const data = await this.store.getItem('app-data') as any;
+      if (!data || !data.documents) {
+        return [];
+      }
 
-      request.onerror = () => {
-        reject(request.error);
-      };
-    });
+      return Object.keys(data.documents);
+    } catch (error) {
+      console.error('Failed to get document IDs from storage:', error);
+      return [];
+    }
   }
 
   /**
    * Delete a document and all its versions
    */
   async deleteDocument(documentId: string): Promise<void> {
-    if (!this.db) {
+    if (!this.isInitialized) {
       await this.init();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
+    if (!isVersionEnabled('V2_PERSISTENCE')) {
+      return;
+    }
+
+    try {
+      const data = await this.store.getItem('app-data') as any;
+      if (!data) {
+        return;
+      }
 
       // Delete document
-      const documentRequest = store.delete(documentId);
+      if (data.documents) {
+        delete data.documents[documentId];
+      }
 
-      // Delete all versions for this document
-      const versionIndex = store.index('documentId');
-      const versionRequest = versionIndex.getAllKeys(documentId);
+      // Delete associated versions
+      if (data.versions) {
+        const versionIds = Object.keys(data.versions).filter(
+          (id) => data.versions[id].documentId === documentId
+        );
+        versionIds.forEach(id => delete data.versions[id]);
+      }
 
-      documentRequest.onsuccess = () => {
-        versionRequest.onsuccess = () => {
-          const versionKeys = versionRequest.result;
-          const deletePromises = versionKeys.map((key: any) => {
-            return new Promise<void>((resolveDelete, rejectDelete) => {
-              const deleteRequest = store.delete(key);
-              deleteRequest.onsuccess = () => resolveDelete();
-              deleteRequest.onerror = () => rejectDelete(deleteRequest.error);
-            });
-          });
-
-          Promise.all(deletePromises)
-            .then(() => resolve())
-            .catch(reject);
-        };
-
-        versionRequest.onerror = () => {
-          reject(versionRequest.error);
-        };
-      };
-
-      documentRequest.onerror = () => {
-        reject(documentRequest.error);
-      };
-    });
+      await this.store.setItem('app-data', data);
+    } catch (error) {
+      console.error('Failed to delete document from storage:', error);
+      throw new Error('Failed to delete document from storage');
+    }
   }
 
   /**
    * Clear all data
    */
   async clearAll(): Promise<void> {
-    if (!this.db) {
+    if (!this.isInitialized) {
       await this.init();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
+    if (!isVersionEnabled('V2_PERSISTENCE')) {
+      return;
+    }
 
-      const request = store.clear();
-      
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = () => {
-        reject(request.error);
-      };
-    });
+    try {
+      await this.store.clear();
+    } catch (error) {
+      console.error('Failed to clear storage:', error);
+      throw new Error('Failed to clear storage');
+    }
   }
 
   /**
    * Get storage usage information
    */
   async getStorageInfo(): Promise<{ totalDocuments: number; totalVersions: number; estimatedSize: number }> {
-    if (!this.db) {
+    if (!this.isInitialized) {
       await this.init();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.storeName], 'readonly');
-      const store = transaction.objectStore(this.storeName);
+    if (!isVersionEnabled('V2_PERSISTENCE')) {
+      return { totalDocuments: 0, totalVersions: 0, estimatedSize: 0 };
+    }
 
-      const request = store.getAll();
+    try {
+      const data = await this.store.getItem('app-data') as any;
+      if (!data) {
+        return { totalDocuments: 0, totalVersions: 0, estimatedSize: 0 };
+      }
+
+      const documents = Object.keys(data.documents || {});
+      const versions = Object.keys(data.versions || {});
       
-      request.onsuccess = () => {
-        const records = request.result;
-        const documents = records.filter((record: any) => record.type === 'document');
-        const versions = records.filter((record: any) => record.type === 'version');
-        
-        // Estimate size (rough calculation)
-        const estimatedSize = JSON.stringify(records).length;
-
-        resolve({
-          totalDocuments: documents.length,
-          totalVersions: versions.length,
-          estimatedSize,
-        });
+      return {
+        totalDocuments: documents.length,
+        totalVersions: versions.length,
+        estimatedSize: JSON.stringify(data).length,
       };
+    } catch (error) {
+      console.error('Failed to get storage info:', error);
+      return { totalDocuments: 0, totalVersions: 0, estimatedSize: 0 };
+    }
+  }
 
-      request.onerror = () => {
-        reject(request.error);
-      };
-    });
+  /**
+   * Get the current storage driver being used
+   */
+  getCurrentDriver(): string {
+    return this.store.driver() || 'unknown';
+  }
+
+  /**
+   * Check if storage is available
+   */
+  async isStorageAvailable(): Promise<boolean> {
+    if (!isVersionEnabled('V2_PERSISTENCE')) {
+      return false;
+    }
+
+    try {
+      await this.store.ready();
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 }
 

@@ -72,7 +72,7 @@ export const MarkdownPreview: React.FC<PreviewComponentProps> = (props) => {
               <p className="text-body-small text-tertiary">Start writing your LLM prompt in the editor</p>
             </div>
           ) : (
-            <div className="prose prose-sm sm:prose lg:prose-lg max-w-none prose-headings:text-primary prose-headings:font-semibold prose-p:text-primary prose-p:leading-relaxed prose-strong:text-primary prose-strong:font-semibold prose-em:text-primary prose-blockquote:border-l-primary prose-blockquote:bg-surface-secondary prose-blockquote:text-secondary prose-code:text-primary prose-code:bg-surface-tertiary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-surface-tertiary prose-pre:border prose-pre:border-primary">
+            <div className="prose prose-sm sm:prose lg:prose-lg max-w-none prose-headings:text-primary prose-headings:font-semibold prose-p:text-primary prose-p:leading-relaxed prose-strong:text-primary prose-strong:font-semibold prose-em:text-primary prose-blockquote:border-l-primary prose-blockquote:bg-surface-secondary prose-blockquote:text-secondary prose-code:text-primary prose-code:bg-surface-tertiary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-surface-tertiary prose-pre:border prose-pre:border-primary prose-ul:text-primary prose-ol:text-primary prose-li:text-primary">
               <ReactMarkdown
                 remarkPlugins={githubFlavoredMarkdown ? [remarkGfm] : []}
                 components={{

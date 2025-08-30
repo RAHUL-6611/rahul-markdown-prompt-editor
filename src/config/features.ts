@@ -6,7 +6,7 @@
 // Version flags - controls which version features are active
 export const VERSION_FLAGS = {
   V1_BASIC_EDITOR: true,    // Split view editor with live preview
-  V2_PERSISTENCE: false,    // IndexedDB storage with localforage
+  V2_PERSISTENCE: true,     // IndexedDB storage with localStorage fallback
   V3_TESTING: false,        // Vitest testing setup
 } as const;
 

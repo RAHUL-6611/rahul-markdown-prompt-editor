@@ -92,7 +92,7 @@ export const TiptapEditor: React.FC<EditorComponentProps> = (props) => {
           value={content} 
           onChange={handleChange} 
           placeholder="Write your markdown prompt here..." 
-          className="w-full outline-none resize-none bg-transparent text-primary placeholder-tertiary font-mono  min-h-[200px]"
+          className="w-full outline-none resize-none bg-transparent text-primary placeholder:text-tertiary font-mono min-h-[200px]"
           style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace' }} 
         />
       </div>

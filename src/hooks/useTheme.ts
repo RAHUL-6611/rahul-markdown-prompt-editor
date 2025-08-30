@@ -8,53 +8,88 @@ import { THEME_CONFIG } from '../config/features';
 import type { ThemeType, UseThemeReturn, ThemeConfig } from '../types/editor';
 
 /**
- * CSS Variables for theming
- */
-const CSS_VARIABLES = {
-  // Colors
-  '--color-bg-primary': '#ffffff',
-  '--color-bg-secondary': '#f8f9fa',
-  '--color-bg-tertiary': '#e9ecef',
-  '--color-text-primary': '#212529',
-  '--color-text-secondary': '#6c757d',
-  '--color-border': '#dee2e6',
-  '--color-accent': '#007bff',
-  '--color-accent-hover': '#0056b3',
-  
-  // Dark theme colors
-  '--color-bg-primary-dark': '#1a1a1a',
-  '--color-bg-secondary-dark': '#2d2d2d',
-  '--color-bg-tertiary-dark': '#404040',
-  '--color-text-primary-dark': '#ffffff',
-  '--color-text-secondary-dark': '#b0b0b0',
-  '--color-border-dark': '#404040',
-  '--color-accent-dark': '#4dabf7',
-  '--color-accent-hover-dark': '#74c0fc',
-} as const;
-
-/**
- * Theme configurations
+ * Theme configurations using design tokens
  */
 const THEMES = {
   light: {
-    '--color-bg-primary': '#ffffff',
-    '--color-bg-secondary': '#f8f9fa',
-    '--color-bg-tertiary': '#e9ecef',
-    '--color-text-primary': '#212529',
-    '--color-text-secondary': '#6c757d',
-    '--color-border': '#dee2e6',
-    '--color-accent': '#007bff',
-    '--color-accent-hover': '#0056b3',
+    // Surface colors
+    '--color-surface-primary': '#ffffff',
+    '--color-surface-secondary': '#f8fafc',
+    '--color-surface-tertiary': '#f1f5f9',
+    
+    // Text colors
+    '--color-text-primary': '#0f172a',
+    '--color-text-secondary': '#475569',
+    '--color-text-tertiary': '#64748b',
+    '--color-text-inverse': '#ffffff',
+    
+    // Border colors
+    '--color-border-primary': '#e2e8f0',
+    '--color-border-secondary': '#cbd5e1',
+    '--color-border-focus': '#3b82f6',
+    
+    // Primary colors
+    '--color-primary-50': '#eff6ff',
+    '--color-primary-100': '#dbeafe',
+    '--color-primary-200': '#bfdbfe',
+    '--color-primary-300': '#93c5fd',
+    '--color-primary-400': '#60a5fa',
+    '--color-primary-500': '#3b82f6',
+    '--color-primary-600': '#2563eb',
+    '--color-primary-700': '#1d4ed8',
+    '--color-primary-800': '#1e40af',
+    '--color-primary-900': '#1e3a8a',
+    
+    // Semantic colors
+    '--color-success-50': '#f0fdf4',
+    '--color-success-500': '#22c55e',
+    '--color-success-600': '#16a34a',
+    '--color-warning-50': '#fffbeb',
+    '--color-warning-500': '#f59e0b',
+    '--color-warning-600': '#d97706',
+    '--color-error-50': '#fef2f2',
+    '--color-error-500': '#ef4444',
+    '--color-error-600': '#dc2626',
   },
   dark: {
-    '--color-bg-primary': '#1a1a1a',
-    '--color-bg-secondary': '#2d2d2d',
-    '--color-bg-tertiary': '#404040',
-    '--color-text-primary': '#ffffff',
-    '--color-text-secondary': '#b0b0b0',
-    '--color-border': '#404040',
-    '--color-accent': '#4dabf7',
-    '--color-accent-hover': '#74c0fc',
+    // Surface colors
+    '--color-surface-primary': '#0f172a',
+    '--color-surface-secondary': '#1e293b',
+    '--color-surface-tertiary': '#334155',
+    
+    // Text colors
+    '--color-text-primary': '#f8fafc',
+    '--color-text-secondary': '#cbd5e1',
+    '--color-text-tertiary': '#94a3b8',
+    '--color-text-inverse': '#0f172a',
+    
+    // Border colors
+    '--color-border-primary': '#334155',
+    '--color-border-secondary': '#475569',
+    '--color-border-focus': '#60a5fa',
+    
+    // Primary colors (same as light for consistency)
+    '--color-primary-50': '#eff6ff',
+    '--color-primary-100': '#dbeafe',
+    '--color-primary-200': '#bfdbfe',
+    '--color-primary-300': '#93c5fd',
+    '--color-primary-400': '#60a5fa',
+    '--color-primary-500': '#3b82f6',
+    '--color-primary-600': '#2563eb',
+    '--color-primary-700': '#1d4ed8',
+    '--color-primary-800': '#1e40af',
+    '--color-primary-900': '#1e3a8a',
+    
+    // Semantic colors
+    '--color-success-50': '#f0fdf4',
+    '--color-success-500': '#22c55e',
+    '--color-success-600': '#16a34a',
+    '--color-warning-50': '#fffbeb',
+    '--color-warning-500': '#f59e0b',
+    '--color-warning-600': '#d97706',
+    '--color-error-50': '#fef2f2',
+    '--color-error-500': '#ef4444',
+    '--color-error-600': '#dc2626',
   },
 } as const;
 
@@ -195,7 +230,7 @@ export const useThemeColors = () => {
 /**
  * Utility function to get CSS variable value
  */
-export const getCSSVariable = (variable: keyof typeof CSS_VARIABLES): string => {
+export const getCSSVariable = (variable: string): string => {
   if (typeof window === 'undefined') return '';
   return getComputedStyle(document.documentElement).getPropertyValue(variable);
 };
@@ -203,7 +238,7 @@ export const getCSSVariable = (variable: keyof typeof CSS_VARIABLES): string => 
 /**
  * Utility function to set CSS variable value
  */
-export const setCSSVariable = (variable: keyof typeof CSS_VARIABLES, value: string): void => {
+export const setCSSVariable = (variable: string, value: string): void => {
   if (typeof window === 'undefined') return;
   document.documentElement.style.setProperty(variable, value);
 };
